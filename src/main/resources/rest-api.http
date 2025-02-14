@@ -31,3 +31,6 @@ Accept: application/json
 <> 2025-02-09T235434.404.json
 <> 2025-02-09T235427.404.json
 <> 2025-02-09T235419.404.json
+
+###
+GET {{baseUrl}}/users

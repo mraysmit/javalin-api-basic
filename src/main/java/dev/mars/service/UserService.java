@@ -3,37 +3,40 @@ package dev.mars.service;
 
 import dev.mars.dao.respository.UserDao;
 import dev.mars.dao.model.User;
+import dev.mars.exception.UserNotFoundException;
+
 import java.util.List;
 
 public class UserService {
-    private final UserDao userDao;
+    private final UserDao userDaoRepo;
 
-    public UserService(UserDao userDao) {
-        this.userDao = userDao;
+    public UserService(UserDao userDaoRepo) {
+        this.userDaoRepo = userDaoRepo;
     }
 
     public User getUserById(int id) {
-        return userDao.getUserById(id);
+        return userDaoRepo.getUserById(id)
+                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
     }
 
     public List<User> getAllUsers() {
-        return userDao.getAllUsers();
+        return userDaoRepo.getAllUsers();
     }
 
     public void addUser(User user) {
-        userDao.addUser(user);
+        userDaoRepo.addUser(user);
     }
 
     public void updateUser(User user) {
-        userDao.updateUser(user);
+        userDaoRepo.updateUser(user);
     }
 
     public void deleteUser(int id) {
-        userDao.deleteUser(id);
+        userDaoRepo.deleteUser(id);
     }
 
     public List<User> getUsersPaginated(int page, int size) {
         int offset = (page - 1) * size;
-        return userDao.getUsersPaginated(offset, size);
+        return userDaoRepo.getUsersPaginated(offset, size);
     }
 }
