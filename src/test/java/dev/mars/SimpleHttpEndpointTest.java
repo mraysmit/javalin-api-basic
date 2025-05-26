@@ -1,5 +1,10 @@
-import dev.mars.Main;
+package dev.mars;
+
 import dev.mars.dao.model.User;
+import dev.mars.controller.UserController;
+import dev.mars.dao.respository.UserDaoRepository;
+import dev.mars.service.UserService;
+import org.h2.jdbcx.JdbcDataSource;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -7,20 +12,26 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Scanner;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Integration tests for the API routes.
- * These tests use HTTP requests to test the endpoints directly.
+ * Integration tests for the API endpoints without using Mockito.
+ * These tests use Java's HttpURLConnection to make HTTP requests to the endpoints.
  */
-public class RoutesTest {
+public class SimpleHttpEndpointTest {
 
     private static final int TEST_PORT = 7070;
     private static final String BASE_URL = "http://localhost:" + TEST_PORT;
+    private HttpClient httpClient;
     private Process serverProcess;
 
     @Before
@@ -50,9 +61,15 @@ public class RoutesTest {
             }
         }).start();
 
+        // Create HTTP client
+        httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+
         // Wait for server to start
         System.out.println("Waiting for server to start...");
-        Thread.sleep(5000);
+        Thread.sleep(5000); // Wait longer
 
         // Verify server is running
         try {
@@ -85,26 +102,54 @@ public class RoutesTest {
         }
     }
 
-    /**
-     * Test getting a user by ID when the user doesn't exist.
-     */
     @Test
-    public void testGetUserById_NotFound() throws IOException {
+    public void testRootEndpoint() throws IOException {
         // Create connection
-        URL url = new URL(BASE_URL + "/users/999");
+        URL url = new URL(BASE_URL + "/");
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
 
         // Get response
         int responseCode = connection.getResponseCode();
+        String responseBody = getResponseBody(connection);
 
         // Verify response
-        assertEquals(404, responseCode);
+        assertEquals(200, responseCode);
+        assertEquals("Hello, World!", responseBody);
     }
 
-    /**
-     * Test getting all users.
-     */
+    @Test
+    public void testHelloEndpoint() throws IOException {
+        // Create connection
+        URL url = new URL(BASE_URL + "/hello/John");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+
+        // Get response
+        int responseCode = connection.getResponseCode();
+        String responseBody = getResponseBody(connection);
+
+        // Verify response
+        assertEquals(200, responseCode);
+        assertEquals("Hello, John!", responseBody);
+    }
+
+    @Test
+    public void testQueryParamsEndpoint() throws IOException {
+        // Create connection
+        URL url = new URL(BASE_URL + "/query?param1=value1&param2=value2");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+
+        // Get response
+        int responseCode = connection.getResponseCode();
+        String responseBody = getResponseBody(connection);
+
+        // Verify response
+        assertEquals(200, responseCode);
+        assertEquals("Query parameters received: param1 = value1, param2 = value2", responseBody);
+    }
+
     @Test
     public void testGetAllUsers() throws IOException {
         // Create connection
@@ -122,9 +167,20 @@ public class RoutesTest {
         assertTrue(responseBody.startsWith("[") && responseBody.endsWith("]"));
     }
 
-    /**
-     * Test adding a user.
-     */
+    @Test
+    public void testGetUserById_NotFound() throws IOException {
+        // Create connection
+        URL url = new URL(BASE_URL + "/users/999");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+
+        // Get response
+        int responseCode = connection.getResponseCode();
+
+        // Verify response
+        assertEquals(404, responseCode);
+    }
+
     @Test
     public void testAddUser() throws IOException {
         // Create connection
@@ -148,9 +204,40 @@ public class RoutesTest {
         assertEquals(201, responseCode);
     }
 
-    /**
-     * Test updating a user.
-     */
+    @Test
+    public void testAddAndGetUser() throws IOException {
+        // First, add a user
+        URL addUrl = new URL(BASE_URL + "/users");
+        HttpURLConnection addConnection = (HttpURLConnection) addUrl.openConnection();
+        addConnection.setRequestMethod("POST");
+        addConnection.setRequestProperty("Content-Type", "application/json");
+        addConnection.setDoOutput(true);
+
+        // Send request body
+        String jsonBody = "{\"name\":\"John Doe\"}";
+        try (OutputStream os = addConnection.getOutputStream()) {
+            byte[] input = jsonBody.getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+
+        // Verify add response
+        int addResponseCode = addConnection.getResponseCode();
+        assertEquals(201, addResponseCode);
+
+        // Then, get all users to find the added user
+        URL getAllUrl = new URL(BASE_URL + "/users");
+        HttpURLConnection getAllConnection = (HttpURLConnection) getAllUrl.openConnection();
+        getAllConnection.setRequestMethod("GET");
+
+        // Get response
+        int getAllResponseCode = getAllConnection.getResponseCode();
+        String getAllResponseBody = getResponseBody(getAllConnection);
+
+        // Verify response
+        assertEquals(200, getAllResponseCode);
+        assertTrue(getAllResponseBody.contains("John Doe"));
+    }
+
     @Test
     public void testUpdateUser() throws IOException {
         // First, add a user
@@ -202,11 +289,21 @@ public class RoutesTest {
         // Verify update response
         int updateResponseCode = updateConnection.getResponseCode();
         assertEquals(204, updateResponseCode);
+
+        // Get the user to verify the update
+        URL getUserUrl = new URL(BASE_URL + "/users/" + userId);
+        HttpURLConnection getUserConnection = (HttpURLConnection) getUserUrl.openConnection();
+        getUserConnection.setRequestMethod("GET");
+
+        // Get response
+        int getUserResponseCode = getUserConnection.getResponseCode();
+        String getUserResponseBody = getResponseBody(getUserConnection);
+
+        // Verify response
+        assertEquals(200, getUserResponseCode);
+        assertTrue(getUserResponseBody.contains("Updated Name"));
     }
 
-    /**
-     * Test deleting a user.
-     */
     @Test
     public void testDeleteUser() throws IOException {
         // First, add a user
@@ -260,9 +357,6 @@ public class RoutesTest {
         assertEquals(404, getUserResponseCode);
     }
 
-    /**
-     * Test getting paginated users.
-     */
     @Test
     public void testGetUsersPaginated() throws IOException {
         // Add multiple users

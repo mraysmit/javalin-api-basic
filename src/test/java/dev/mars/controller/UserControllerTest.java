@@ -1,5 +1,11 @@
+package dev.mars.controller;
+
+import dev.mars.config.AppConfig;
 import dev.mars.Main;
 import dev.mars.dao.model.User;
+import dev.mars.routes.ApiRoutes;
+import dev.mars.routes.TradeRoutes;
+import dev.mars.routes.UserRoutes;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -14,80 +20,71 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Integration tests for the API routes.
+ * Integration tests for the UserController.
  * These tests use HTTP requests to test the endpoints directly.
  */
-public class RoutesTest {
+public class UserControllerTest {
 
     private static final int TEST_PORT = 7070;
     private static final String BASE_URL = "http://localhost:" + TEST_PORT;
-    private Process serverProcess;
+    private io.javalin.Javalin app;
 
     @Before
     public void setup() throws IOException, InterruptedException {
-        // Start the main application in a separate process
-        ProcessBuilder processBuilder = new ProcessBuilder(
-            "java", 
-            "-cp", 
-            System.getProperty("java.class.path"),
-            "dev.mars.Main"
-        );
-        processBuilder.redirectErrorStream(true);
+        // Start the server directly in the same JVM
+        System.out.println("[DEBUG_LOG] Starting server directly in the same JVM");
 
-        // Print debug information
-        System.out.println("Starting server process with command: " + String.join(" ", processBuilder.command()));
-        System.out.println("Classpath: " + System.getProperty("java.class.path"));
+        // Create the Javalin app
+        this.app = io.javalin.Javalin.create().start(TEST_PORT);
 
-        // Start the process
-        serverProcess = processBuilder.start();
+        // Initialize application configuration
+        System.out.println("[DEBUG_LOG] Initializing application configuration");
+        AppConfig appConfig = new AppConfig();
 
-        // Read process output for debugging
-        new Thread(() -> {
-            try (Scanner scanner = new Scanner(serverProcess.getInputStream())) {
-                while (scanner.hasNextLine()) {
-                    System.out.println("[SERVER] " + scanner.nextLine());
-                }
-            }
-        }).start();
+        // Register routes
+        System.out.println("[DEBUG_LOG] Registering routes");
+        ApiRoutes.register(app, appConfig.getBaseController());
+        UserRoutes.register(app, appConfig.getUserController());
+        TradeRoutes.register(app, appConfig.getTradeController());
 
-        // Wait for server to start
-        System.out.println("Waiting for server to start...");
-        Thread.sleep(5000);
+        // Register exception handlers
+        System.out.println("[DEBUG_LOG] Registering exception handlers");
+        dev.mars.exception.ExceptionHandler.register(app);
+
+        System.out.println("[DEBUG_LOG] Server started on port " + TEST_PORT);
+
+        // Wait a moment for the server to initialize
+        Thread.sleep(1000);
 
         // Verify server is running
         try {
-            System.out.println("Checking if server is running...");
+            System.out.println("[DEBUG_LOG] Checking if server is running...");
             URL url = new URL(BASE_URL);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setConnectTimeout(5000);
             connection.setReadTimeout(5000);
             connection.setRequestMethod("GET");
             int responseCode = connection.getResponseCode();
-            System.out.println("Server response code: " + responseCode);
+            System.out.println("[DEBUG_LOG] Server response code: " + responseCode);
             if (responseCode != 200) {
                 throw new RuntimeException("Server not running properly. Status code: " + responseCode);
             }
         } catch (Exception e) {
-            System.err.println("Error connecting to server: " + e.getMessage());
+            System.err.println("[DEBUG_LOG] Error connecting to server: " + e.getMessage());
             e.printStackTrace();
-            if (serverProcess != null) {
-                serverProcess.destroy();
-            }
             throw new RuntimeException("Failed to start server", e);
         }
     }
 
     @After
     public void teardown() {
-        // Stop the server process
-        if (serverProcess != null) {
-            serverProcess.destroy();
+        // Stop the Javalin app
+        if (app != null) {
+            System.out.println("[DEBUG_LOG] Stopping Javalin app");
+            app.stop();
         }
     }
 
-    /**
-     * Test getting a user by ID when the user doesn't exist.
-     */
     @Test
     public void testGetUserById_NotFound() throws IOException {
         // Create connection
@@ -102,9 +99,6 @@ public class RoutesTest {
         assertEquals(404, responseCode);
     }
 
-    /**
-     * Test getting all users.
-     */
     @Test
     public void testGetAllUsers() throws IOException {
         // Create connection
@@ -122,9 +116,6 @@ public class RoutesTest {
         assertTrue(responseBody.startsWith("[") && responseBody.endsWith("]"));
     }
 
-    /**
-     * Test adding a user.
-     */
     @Test
     public void testAddUser() throws IOException {
         // Create connection
@@ -148,9 +139,40 @@ public class RoutesTest {
         assertEquals(201, responseCode);
     }
 
-    /**
-     * Test updating a user.
-     */
+    @Test
+    public void testAddAndGetUser() throws IOException {
+        // First, add a user
+        URL addUrl = new URL(BASE_URL + "/users");
+        HttpURLConnection addConnection = (HttpURLConnection) addUrl.openConnection();
+        addConnection.setRequestMethod("POST");
+        addConnection.setRequestProperty("Content-Type", "application/json");
+        addConnection.setDoOutput(true);
+
+        // Send request body
+        String jsonBody = "{\"name\":\"John Doe\"}";
+        try (OutputStream os = addConnection.getOutputStream()) {
+            byte[] input = jsonBody.getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+
+        // Verify add response
+        int addResponseCode = addConnection.getResponseCode();
+        assertEquals(201, addResponseCode);
+
+        // Then, get all users to find the added user
+        URL getAllUrl = new URL(BASE_URL + "/users");
+        HttpURLConnection getAllConnection = (HttpURLConnection) getAllUrl.openConnection();
+        getAllConnection.setRequestMethod("GET");
+
+        // Get response
+        int getAllResponseCode = getAllConnection.getResponseCode();
+        String getAllResponseBody = getResponseBody(getAllConnection);
+
+        // Verify response
+        assertEquals(200, getAllResponseCode);
+        assertTrue(getAllResponseBody.contains("John Doe"));
+    }
+
     @Test
     public void testUpdateUser() throws IOException {
         // First, add a user
@@ -202,11 +224,21 @@ public class RoutesTest {
         // Verify update response
         int updateResponseCode = updateConnection.getResponseCode();
         assertEquals(204, updateResponseCode);
+
+        // Get the user to verify the update
+        URL getUserUrl = new URL(BASE_URL + "/users/" + userId);
+        HttpURLConnection getUserConnection = (HttpURLConnection) getUserUrl.openConnection();
+        getUserConnection.setRequestMethod("GET");
+
+        // Get response
+        int getUserResponseCode = getUserConnection.getResponseCode();
+        String getUserResponseBody = getResponseBody(getUserConnection);
+
+        // Verify response
+        assertEquals(200, getUserResponseCode);
+        assertTrue(getUserResponseBody.contains("Updated Name"));
     }
 
-    /**
-     * Test deleting a user.
-     */
     @Test
     public void testDeleteUser() throws IOException {
         // First, add a user
@@ -260,9 +292,6 @@ public class RoutesTest {
         assertEquals(404, getUserResponseCode);
     }
 
-    /**
-     * Test getting paginated users.
-     */
     @Test
     public void testGetUsersPaginated() throws IOException {
         // Add multiple users

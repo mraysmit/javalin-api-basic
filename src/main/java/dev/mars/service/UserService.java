@@ -15,8 +15,11 @@ public class UserService {
     }
 
     public User getUserById(int id) {
-        return userDaoRepo.getUserById(id)
-                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+        User user = userDaoRepo.getUserById(id);
+        if (user == null) {
+            throw new UserNotFoundException("User not found with id: " + id);
+        }
+        return user;
     }
 
     public List<User> getAllUsers() {

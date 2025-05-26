@@ -1,7 +1,15 @@
 package dev.mars.exception;
 
-public class UserNotFoundException extends RuntimeException {
+/**
+ * Exception thrown when a user is not found.
+ */
+public class UserNotFoundException extends ApiException {
+    /**
+     * Creates a new UserNotFoundException with the specified message.
+     * 
+     * @param message The error message
+     */
     public UserNotFoundException(String message) {
-        super(message);
+        super(message, 404);
     }
 }

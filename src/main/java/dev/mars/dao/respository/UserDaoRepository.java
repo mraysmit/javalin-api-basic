@@ -1,6 +1,7 @@
 package dev.mars.dao.respository;
 
 import dev.mars.dao.model.User;
+import dev.mars.exception.DatabaseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.sql.*;
@@ -28,7 +29,7 @@ public class UserDaoRepository implements UserDao {
             }
         } catch (SQLException e) {
             logger.error("Error getting user by id", e);
-            throw new RuntimeException(e);
+            throw DatabaseException.forOperation("getUserById", e);
         }
         return null;
     }
@@ -45,7 +46,7 @@ public class UserDaoRepository implements UserDao {
             }
         } catch (SQLException e) {
             logger.error("Error getting all users", e);
-            throw new RuntimeException(e);
+            throw DatabaseException.forOperation("getAllUsers", e);
         }
         return users;
     }
@@ -59,7 +60,7 @@ public class UserDaoRepository implements UserDao {
             stmt.executeUpdate();
         } catch (SQLException e) {
             logger.error("Error adding user", e);
-            throw new RuntimeException(e);
+            throw DatabaseException.forOperation("addUser", e);
         }
     }
 
@@ -73,7 +74,7 @@ public class UserDaoRepository implements UserDao {
             stmt.executeUpdate();
         } catch (SQLException e) {
             logger.error("Error updating user", e);
-            throw new RuntimeException(e);
+            throw DatabaseException.forOperation("updateUser", e);
         }
     }
 
@@ -86,7 +87,7 @@ public class UserDaoRepository implements UserDao {
             stmt.executeUpdate();
         } catch (SQLException e) {
             logger.error("Error deleting user", e);
-            throw new RuntimeException(e);
+            throw DatabaseException.forOperation("deleteUser", e);
         }
     }
 
@@ -104,7 +105,7 @@ public class UserDaoRepository implements UserDao {
             }
         } catch (SQLException e) {
             logger.error("Error getting users paginated", e);
-            throw new RuntimeException(e);
+            throw DatabaseException.forOperation("getUsersPaginated", e);
         }
         return users;
     }

@@ -1,6 +1,5 @@
 package dev.mars.exception;
 
-import dev.mars.exception.UserNotFoundException;
 import io.javalin.Javalin;
 import io.javalin.http.HttpResponseException;
 import org.slf4j.Logger;
@@ -10,9 +9,9 @@ public class ExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(ExceptionHandler.class);
 
     public static void register(Javalin app) {
-        app.exception(UserNotFoundException.class, (e, ctx) -> {
-            logger.error("User not found", e);
-            ctx.status(404).json(new ErrorResponse(e.getMessage()));
+        app.exception(ApiException.class, (e, ctx) -> {
+            logger.error("API exception: {}", e.getMessage(), e);
+            ctx.status(e.getStatusCode()).json(new ErrorResponse(e.getMessage()));
         });
 
         app.exception(HttpResponseException.class, (e, ctx) -> {

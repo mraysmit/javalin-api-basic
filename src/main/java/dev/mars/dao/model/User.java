@@ -5,6 +5,10 @@ public class User {
     private int id;
     private String name;
 
+    // Default constructor for JSON deserialization
+    public User() {
+    }
+
     public User(int id, String name) {
         this.id = id;
         this.name = name;
@@ -26,4 +30,3 @@ public class User {
         this.name = name;
     }
 }
-

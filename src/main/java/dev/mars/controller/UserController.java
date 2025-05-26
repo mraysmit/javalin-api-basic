@@ -19,10 +19,11 @@ public class UserController {
     public void getUserById(Context ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
         logger.debug("Fetching user with id: {}", id);
-        User user = userService.getUserById(id);
-        if (user != null) {
+        try {
+            User user = userService.getUserById(id);
             ctx.json(user);
-        } else {
+        } catch (dev.mars.exception.UserNotFoundException e) {
+            logger.error("User not found", e);
             ctx.status(404);
         }
     }
