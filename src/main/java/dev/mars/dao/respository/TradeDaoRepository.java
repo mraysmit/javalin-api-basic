@@ -1,5 +1,6 @@
 package dev.mars.dao.respository;
 
+import com.google.inject.Inject;
 import dev.mars.dao.model.Trade;
 import dev.mars.exception.DatabaseException;
 import org.slf4j.Logger;
@@ -14,6 +15,7 @@ public class TradeDaoRepository implements TradeDao {
     private static final Logger logger = LoggerFactory.getLogger(TradeDaoRepository.class);
     private final DataSource dataSource;
 
+    @Inject
     public TradeDaoRepository(DataSource dataSource) {
         this.dataSource = dataSource;
     }

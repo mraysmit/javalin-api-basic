@@ -3,6 +3,9 @@ package dev.mars.controller;
 import dev.mars.dao.model.Trade;
 import dev.mars.exception.TradeNotFoundException;
 import dev.mars.service.TradeService;
+import dev.mars.service.cache.CacheService;
+import dev.mars.service.metrics.MetricsService;
+import dev.mars.service.validation.ValidationService;
 import io.javalin.http.BadRequestResponse;
 import io.javalin.http.Context;
 import org.junit.Before;
@@ -12,6 +15,7 @@ import org.mockito.Mockito;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.Mockito.*;
 
@@ -19,12 +23,21 @@ public class TradeControllerMockTest {
 
     private final Context ctx = mock(Context.class);
     private TradeService tradeService;
+    private ValidationService validationService;
+    private MetricsService metricsService;
+    private CacheService cacheService;
     private TradeController tradeController;
 
     @Before
     public void setup() {
         tradeService = mock(TradeService.class);
-        tradeController = new TradeController(tradeService);
+        validationService = mock(ValidationService.class);
+        metricsService = mock(MetricsService.class);
+        cacheService = mock(CacheService.class);
+        tradeController = new TradeController(tradeService, validationService, metricsService, cacheService);
+
+        // Setup default mock behaviors
+        when(cacheService.get(anyString(), any())).thenReturn(Optional.empty());
     }
 
     @Test

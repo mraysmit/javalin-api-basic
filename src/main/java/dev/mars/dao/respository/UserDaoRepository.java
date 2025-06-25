@@ -1,5 +1,6 @@
 package dev.mars.dao.respository;
 
+import com.google.inject.Inject;
 import dev.mars.dao.model.User;
 import dev.mars.exception.DatabaseException;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ public class UserDaoRepository implements UserDao {
     private static final Logger logger = LoggerFactory.getLogger(UserDaoRepository.class);
     private final DataSource dataSource;
 
+    @Inject
     public UserDaoRepository(DataSource dataSource) {
         this.dataSource = dataSource;
     }

@@ -3,6 +3,9 @@ package dev.mars.controller;
 import dev.mars.dao.model.User;
 import dev.mars.exception.UserNotFoundException;
 import dev.mars.service.UserService;
+import dev.mars.service.cache.CacheService;
+import dev.mars.service.metrics.MetricsService;
+import dev.mars.service.validation.ValidationService;
 import io.javalin.http.BadRequestResponse;
 import io.javalin.http.Context;
 import org.junit.Before;
@@ -11,6 +14,7 @@ import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.Mockito.*;
 
@@ -18,12 +22,21 @@ public class UserControllerMockTest {
 
     private final Context ctx = mock(Context.class);
     private UserService userService;
+    private ValidationService validationService;
+    private MetricsService metricsService;
+    private CacheService cacheService;
     private UserController userController;
 
     @Before
     public void setup() {
         userService = mock(UserService.class);
-        userController = new UserController(userService);
+        validationService = mock(ValidationService.class);
+        metricsService = mock(MetricsService.class);
+        cacheService = mock(CacheService.class);
+        userController = new UserController(userService, validationService, metricsService, cacheService);
+
+        // Setup default mock behaviors
+        when(cacheService.get(anyString(), any())).thenReturn(Optional.empty());
     }
 
     @Test

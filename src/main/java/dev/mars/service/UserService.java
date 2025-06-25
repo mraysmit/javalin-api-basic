@@ -1,6 +1,6 @@
 package dev.mars.service;
 
-
+import com.google.inject.Inject;
 import dev.mars.dao.respository.UserDao;
 import dev.mars.dao.model.User;
 import dev.mars.exception.UserNotFoundException;
@@ -10,6 +10,7 @@ import java.util.List;
 public class UserService {
     private final UserDao userDaoRepo;
 
+    @Inject
     public UserService(UserDao userDaoRepo) {
         this.userDaoRepo = userDaoRepo;
     }
@@ -39,7 +40,11 @@ public class UserService {
     }
 
     public List<User> getUsersPaginated(int page, int size) {
-        int offset = (page - 1) * size;
+        int offset = page * size;
         return userDaoRepo.getUsersPaginated(offset, size);
+    }
+
+    public long getUserCount() {
+        return userDaoRepo.getAllUsers().size(); // Simple implementation for now
     }
 }

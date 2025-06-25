@@ -1,5 +1,10 @@
 package dev.mars.dao.model;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
+
 import java.time.LocalDate;
 
 /**
@@ -7,14 +12,32 @@ import java.time.LocalDate;
  */
 public class Trade {
     private int id;
+
+    @NotBlank(message = "Symbol is required")
+    @Size(min = 1, max = 10, message = "Symbol must be between 1 and 10 characters")
     private String symbol;
+
+    @Positive(message = "Quantity must be positive")
     private int quantity;
+
+    @Positive(message = "Price must be positive")
     private double price;
+
+    @NotBlank(message = "Type is required")
     private String type;
+
+    @NotBlank(message = "Status is required")
     private String status;
+    @NotNull(message = "Trade date is required")
     private LocalDate tradeDate;
+
+    @NotNull(message = "Settlement date is required")
     private LocalDate settlementDate;
+
+    @NotBlank(message = "Counterparty is required")
     private String counterparty;
+
+    @Size(max = 500, message = "Notes cannot exceed 500 characters")
     private String notes;
 
     // Default constructor for JSON deserialization

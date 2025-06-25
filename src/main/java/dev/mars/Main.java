@@ -1,88 +1,147 @@
 package dev.mars;
 
-import dev.mars.config.AppConfig;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import dev.mars.config.ApplicationProperties;
+import dev.mars.controller.BaseController;
+import dev.mars.controller.DocumentationController;
+import dev.mars.controller.MetricsController;
+import dev.mars.controller.TradeController;
+import dev.mars.controller.UserController;
+import dev.mars.di.ApplicationModule;
 import dev.mars.exception.ExceptionHandler;
-import dev.mars.routes.ApiRoutes;
-import dev.mars.routes.TradeRoutes;
-import dev.mars.routes.UserRoutes;
+import dev.mars.routes.v1.TradeRoutesV1;
+import dev.mars.routes.v1.UserRoutesV1;
+import dev.mars.service.async.AsyncService;
 import io.javalin.Javalin;
+import io.javalin.config.JavalinConfig;
+import io.javalin.json.JavalinJackson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.yaml.snakeyaml.Yaml;
-
-import java.io.InputStream;
-import java.util.Map;
 
 /**
- * Main application class.
+ * Enhanced main application class for the Javalin API.
  */
 public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
-    private static final int DEFAULT_PORT = 7070;
+    private static AsyncService asyncService;
 
     public static void main(String[] args) {
-        logger.info("Starting application");
+        logger.info("Starting enhanced Javalin API application");
 
-        // Get port from command line args or config file
-        int port = getPort(args);
-        logger.info("Using port: {}", port);
+        try {
+            // Initialize dependency injection
+            Injector injector = Guice.createInjector(new ApplicationModule());
 
-        // Create Javalin app
-        var app = Javalin.create(/*config*/).start(port);
+            // Get configuration
+            ApplicationProperties properties = injector.getInstance(ApplicationProperties.class);
 
-        // Initialize application configuration
-        AppConfig appConfig = new AppConfig();
+            // Get port from command line args or configuration
+            int port = getPort(args, properties);
+            logger.info("Using port: {}", port);
 
-        // Register routes
-        ApiRoutes.register(app, appConfig.getBaseController());
-        UserRoutes.register(app, appConfig.getUserController());
-        TradeRoutes.register(app, appConfig.getTradeController());
+            // Create Javalin app with enhanced configuration
+            var app = createJavalinApp(properties).start(port);
 
-        // Register exception handlers
-        ExceptionHandler.register(app);
+            // Get controllers from injector
+            BaseController baseController = injector.getInstance(BaseController.class);
+            UserController userController = injector.getInstance(UserController.class);
+            TradeController tradeController = injector.getInstance(TradeController.class);
+            MetricsController metricsController = injector.getInstance(MetricsController.class);
+            DocumentationController documentationController = injector.getInstance(DocumentationController.class);
 
-        logger.info("Application started successfully");
+            // Register versioned routes
+            registerRoutes(app, baseController, userController, tradeController, metricsController, documentationController, properties);
+
+            // Register exception handlers
+            ExceptionHandler.register(app);
+
+            // Initialize async service
+            asyncService = injector.getInstance(AsyncService.class);
+
+            // Add shutdown hook
+            addShutdownHook();
+
+            logger.info("Enhanced Javalin API application started successfully on port {}", port);
+
+        } catch (Exception e) {
+            logger.error("Failed to start application", e);
+            System.exit(1);
+        }
     }
 
-    /**
-     * Gets the port number from command line arguments or from the YAML configuration file.
-     * If neither is available, returns the default port (7070).
-     *
-     * @param args Command line arguments
-     * @return The port number to use
-     */
-    private static int getPort(String[] args) {
-        // Try to get port from command line args
+    private static int getPort(String[] args, ApplicationProperties properties) {
+        // Try to get port from command line args first
         if (args.length > 0) {
             try {
                 return Integer.parseInt(args[0]);
             } catch (NumberFormatException e) {
-                logger.warn("Invalid port number in command line args: {}. Using configuration file or default.", args[0]);
+                logger.warn("Invalid port number in command line args: {}. Using configuration.", args[0]);
             }
         }
 
-        // Try to get port from YAML config file
-        try {
-            Yaml yaml = new Yaml();
-            InputStream inputStream = Main.class.getClassLoader().getResourceAsStream("application.yaml");
-            if (inputStream != null) {
-                Map<String, Object> config = yaml.load(inputStream);
-                if (config != null && config.containsKey("server")) {
-                    Map<String, Object> serverConfig = (Map<String, Object>) config.get("server");
-                    if (serverConfig != null && serverConfig.containsKey("port")) {
-                        Object portObj = serverConfig.get("port");
-                        if (portObj instanceof Integer) {
-                            return (Integer) portObj;
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            logger.warn("Error reading port from configuration file: {}", e.getMessage());
+        // Use port from configuration
+        return properties.getServer().getPort();
+    }
+
+    private static Javalin createJavalinApp(ApplicationProperties properties) {
+        return Javalin.create(config -> {
+            // Enable CORS for development
+            config.bundledPlugins.enableCors(cors -> {
+                cors.addRule(it -> {
+                    it.allowHost("http://localhost:3000", "http://localhost:8080", "http://127.0.0.1:8080");
+                    it.allowCredentials = false; // Set to false for security
+                });
+            });
+
+            // Enable request logging
+            config.bundledPlugins.enableDevLogging();
+
+            // Configure JSON serialization
+            config.jsonMapper(new JavalinJackson());
+
+            logger.info("Javalin configured with enhanced features");
+        });
+    }
+
+    private static void registerRoutes(Javalin app, BaseController baseController,
+                                     UserController userController, TradeController tradeController,
+                                     MetricsController metricsController, DocumentationController documentationController,
+                                     ApplicationProperties properties) {
+
+        String apiVersion = properties.getApi().getVersion();
+        logger.info("Registering routes for API version: {}", apiVersion);
+
+        // Health and metrics endpoints
+        app.get("/health", metricsController::getHealth);
+        app.get(properties.getMetrics().getEndpoint(), metricsController::getMetrics);
+        app.get("/cache/stats", metricsController::getCacheStats);
+
+        // API documentation endpoints
+        if (properties.getApi().getDocumentation().isEnabled()) {
+            app.get("/api-docs", documentationController::getOpenApiSpec);
+            app.get(properties.getApi().getDocumentation().getPath(), documentationController::getSwaggerUi);
         }
 
-        // Return default port if neither command line args nor config file is available
-        logger.info("Using default port: {}", DEFAULT_PORT);
-        return DEFAULT_PORT;
+        // Legacy routes (for backward compatibility)
+        app.get("/", baseController::handleRoot);
+        app.get("/hello/{name}", baseController::handleHello);
+        app.get("/query", baseController::handleQueryParams);
+
+        // Versioned API routes
+        UserRoutesV1.register(app, userController);
+        TradeRoutesV1.register(app, tradeController);
+
+        logger.info("All routes registered successfully");
+    }
+
+    private static void addShutdownHook() {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            logger.info("Shutting down application gracefully");
+            if (asyncService != null) {
+                asyncService.shutdown();
+            }
+            logger.info("Application shutdown completed");
+        }));
     }
 }

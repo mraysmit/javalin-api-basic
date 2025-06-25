@@ -9,6 +9,10 @@ import dev.mars.dao.respository.UserDao;
 import dev.mars.dao.respository.UserDaoRepository;
 import dev.mars.service.TradeService;
 import dev.mars.service.UserService;
+import dev.mars.service.cache.CacheService;
+import dev.mars.service.cache.CaffeineCache;
+import dev.mars.service.metrics.MetricsService;
+import dev.mars.service.validation.ValidationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +35,11 @@ public class AppConfig {
     private final TradeService tradeService;
     private final TradeController tradeController;
 
+    // Enhanced services
+    private final ValidationService validationService;
+    private final MetricsService metricsService;
+    private final CacheService cacheService;
+
     /**
      * Creates a new AppConfig instance with all application components.
      */
@@ -41,16 +50,22 @@ public class AppConfig {
         this.dataSource = DatabaseConfig.createDataSource();
         DatabaseConfig.initializeDatabase(dataSource);
 
+        // Initialize enhanced services
+        ApplicationProperties properties = new ApplicationProperties(); // Use defaults for legacy config
+        this.validationService = new ValidationService();
+        this.metricsService = new MetricsService(properties);
+        this.cacheService = new CaffeineCache(properties, metricsService);
+
         // Initialize User components with dependencies
         this.userDao = new UserDaoRepository(dataSource);
         this.userService = new UserService(userDao);
-        this.userController = new UserController(userService);
+        this.userController = new UserController(userService, validationService, metricsService, cacheService);
         this.baseController = new BaseController();
 
         // Initialize Trade components with dependencies
         this.tradeDao = new TradeDaoRepository(dataSource);
         this.tradeService = new TradeService(tradeDao);
-        this.tradeController = new TradeController(tradeService);
+        this.tradeController = new TradeController(tradeService, validationService, metricsService, cacheService);
 
         logger.info("Application configuration initialized");
     }
