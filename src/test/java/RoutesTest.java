@@ -19,7 +19,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class RoutesTest {
 
-    private static final int TEST_PORT = 7070;
+    private static final int TEST_PORT = 7071;
     private static final String BASE_URL = "http://localhost:" + TEST_PORT;
     private Process serverProcess;
 
@@ -27,10 +27,11 @@ public class RoutesTest {
     public void setup() throws IOException, InterruptedException {
         // Start the main application in a separate process
         ProcessBuilder processBuilder = new ProcessBuilder(
-            "java", 
-            "-cp", 
+            "java",
+            "-cp",
             System.getProperty("java.class.path"),
-            "dev.mars.Main"
+            "dev.mars.Main",
+            String.valueOf(TEST_PORT)
         );
         processBuilder.redirectErrorStream(true);
 

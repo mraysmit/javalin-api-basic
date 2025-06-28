@@ -87,33 +87,38 @@ public class ApplicationModule extends AbstractModule {
     }
 
     private void initializeDatabase(DataSource dataSource) {
+        logger.info("Starting database initialization");
         try (var connection = dataSource.getConnection();
              var statement = connection.createStatement()) {
-            
+
+            logger.info("Creating users table");
             // Create users table
             statement.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    name VARCHAR(255) NOT NULL,
-                    email VARCHAR(255),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    name VARCHAR(255) NOT NULL
                 )
             """);
 
+            logger.info("Creating trades table");
             // Create trades table
             statement.execute("""
                 CREATE TABLE IF NOT EXISTS trades (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    symbol VARCHAR(10) NOT NULL,
-                    quantity INT NOT NULL,
-                    price DECIMAL(10,2) NOT NULL,
-                    trade_type VARCHAR(10) NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    symbol VARCHAR(20),
+                    quantity INT,
+                    price DOUBLE,
+                    type VARCHAR(10),
+                    status VARCHAR(20),
+                    trade_date DATE,
+                    settlement_date DATE,
+                    counterparty VARCHAR(100),
+                    notes VARCHAR(500)
                 )
             """);
 
             logger.info("Database schema initialized successfully");
-            
+
         } catch (Exception e) {
             logger.error("Failed to initialize database schema", e);
             throw new RuntimeException("Database initialization failed", e);

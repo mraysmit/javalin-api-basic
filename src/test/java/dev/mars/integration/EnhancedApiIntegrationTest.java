@@ -30,20 +30,54 @@ public class EnhancedApiIntegrationTest {
 
     @BeforeAll
     static void setUp() {
-        // Initialize dependency injection for testing
-        Injector injector = Guice.createInjector(new ApplicationModule());
-        ApplicationProperties properties = injector.getInstance(ApplicationProperties.class);
-        
-        // Override port for testing
-        properties.getServer().setPort(TEST_PORT);
-        
-        // Start the application (simplified version for testing)
-        app = Javalin.create().start(TEST_PORT);
-        
-        // Initialize HTTP client
-        httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+        try {
+            // Initialize dependency injection for testing
+            Injector injector = Guice.createInjector(new ApplicationModule());
+            ApplicationProperties properties = injector.getInstance(ApplicationProperties.class);
+
+            // Override port for testing
+            properties.getServer().setPort(TEST_PORT);
+
+            // Get controllers from injector
+            var baseController = injector.getInstance(dev.mars.controller.BaseController.class);
+            var userController = injector.getInstance(dev.mars.controller.UserController.class);
+            var tradeController = injector.getInstance(dev.mars.controller.TradeController.class);
+            var metricsController = injector.getInstance(dev.mars.controller.MetricsController.class);
+            var documentationController = injector.getInstance(dev.mars.controller.DocumentationController.class);
+
+            // Start the application with proper configuration
+            app = Javalin.create(config -> {
+                config.bundledPlugins.enableCors(cors -> {
+                    cors.addRule(it -> {
+                        it.allowHost("http://localhost:3000", "http://localhost:" + TEST_PORT);
+                        it.allowCredentials = false;
+                    });
+                });
+                config.bundledPlugins.enableDevLogging();
+            }).start(TEST_PORT);
+
+            // Register all routes like in the main application
+            app.get("/health", metricsController::getHealth);
+            app.get("/metrics", metricsController::getMetrics);
+            app.get("/cache/stats", metricsController::getCacheStats);
+            app.get("/api-docs", documentationController::getOpenApiSpec);
+            app.get("/swagger-ui", documentationController::getSwaggerUi);
+
+            // Register versioned API routes
+            dev.mars.routes.v1.UserRoutesV1.register(app, userController);
+            dev.mars.routes.v1.TradeRoutesV1.register(app, tradeController);
+
+            // Initialize HTTP client
+            httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+
+            // Wait a bit for the server to fully start
+            Thread.sleep(1000);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set up integration test", e);
+        }
     }
 
     @AfterAll

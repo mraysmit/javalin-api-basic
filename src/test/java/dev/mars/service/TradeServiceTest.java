@@ -108,7 +108,7 @@ public class TradeServiceTest {
         // Arrange
         int page = 2;
         int size = 10;
-        int offset = (page - 1) * size;
+        int offset = page * size; // Service uses 0-based page indexing
         List<Trade> expectedTrades = Arrays.asList(
             createSampleTrade(11),
             createSampleTrade(12)

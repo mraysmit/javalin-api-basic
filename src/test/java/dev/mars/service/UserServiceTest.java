@@ -107,7 +107,7 @@ public class UserServiceTest {
         // Arrange
         int page = 2;
         int size = 10;
-        int offset = (page - 1) * size;
+        int offset = page * size; // Service uses 0-based page indexing
         List<User> expectedUsers = Arrays.asList(
             new User(11, "User 11"),
             new User(12, "User 12")

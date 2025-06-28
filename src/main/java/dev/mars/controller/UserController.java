@@ -124,6 +124,11 @@ public class UserController {
         int id = Integer.parseInt(ctx.pathParam("id"));
         logger.debug("Deleting user with id: {}", id);
         userService.deleteUser(id);
+
+        // Invalidate cache for the deleted user
+        cacheService.evict("user:" + id);
+        cacheService.evict("users:all");
+
         ctx.status(204);
     }
 

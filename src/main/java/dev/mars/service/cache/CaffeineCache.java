@@ -174,4 +174,13 @@ public class CaffeineCache implements CacheService {
             return new CacheService.CacheStats(0, 0, 0, 0);
         }
     }
+
+    /**
+     * Force cache cleanup to trigger evictions (for testing purposes).
+     */
+    public void forceCleanup() {
+        if (cacheEnabled) {
+            cache.cleanUp();
+        }
+    }
 }

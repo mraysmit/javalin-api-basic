@@ -273,9 +273,10 @@ SERVER_PORT=8090 CACHE_ENABLED=true java -jar target/javalin-api-basic-1.0-SNAPS
 ```
 
 ### **Docker Deployment**
+
 ```dockerfile
 FROM openjdk:21-jre-slim
-COPY target/javalin-api-basic-1.0-SNAPSHOT.jar app.jar
+COPY ../target/javalin-api-basic-1.0-SNAPSHOT.jar app.jar
 EXPOSE 8080
 CMD ["java", "-jar", "app.jar"]
 ```

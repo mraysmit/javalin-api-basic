@@ -125,6 +125,11 @@ public class CachePerformanceTest {
             smallCache.put("key-" + i, "value-" + i);
         }
 
+        // Force cache cleanup to trigger evictions
+        if (smallCache instanceof CaffeineCache) {
+            ((CaffeineCache) smallCache).forceCleanup();
+        }
+
         CacheService.CacheStats stats = smallCache.getStats();
         assertTrue(stats.getSize() <= 10, "Cache size should not exceed maximum");
         assertTrue(stats.getEvictionCount() > 0, "Should have evictions when exceeding capacity");

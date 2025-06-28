@@ -12,6 +12,8 @@ import dev.mars.di.ApplicationModule;
 import dev.mars.exception.ExceptionHandler;
 import dev.mars.routes.v1.TradeRoutesV1;
 import dev.mars.routes.v1.UserRoutesV1;
+import dev.mars.routes.UserRoutes;
+import dev.mars.routes.TradeRoutes;
 import dev.mars.service.async.AsyncService;
 import io.javalin.Javalin;
 import io.javalin.config.JavalinConfig;
@@ -127,6 +129,10 @@ public class Main {
         app.get("/", baseController::handleRoot);
         app.get("/hello/{name}", baseController::handleHello);
         app.get("/query", baseController::handleQueryParams);
+
+        // Legacy routes (for backward compatibility)
+        UserRoutes.register(app, userController);
+        TradeRoutes.register(app, tradeController);
 
         // Versioned API routes
         UserRoutesV1.register(app, userController);
